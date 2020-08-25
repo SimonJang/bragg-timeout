@@ -1,0 +1,33 @@
+{
+	"name": "bragg-timeout",
+	"version": "0.0.0",
+	"description": "Timeout middleware for bragg framework",
+	"license": "MIT",
+	"repository": "simonjang/bragg-timeout",
+	"author": {
+		"name": "Simon Jang",
+		"email": "simon.jang.contact@gmail.com",
+		"url": "https://github.com/SimonJang"
+	},
+	"engines": {
+		"node": ">=8"
+	},
+	"scripts": {
+		"test": "xo && ava"
+	},
+	"files": [
+		"index.js"
+	],
+	"keywords": [
+		"bragg",
+		"middleware",
+		"timeout"
+	],
+	"dependencies": {},
+	"devDependencies": {
+		"ava": "^2.1.0",
+		"delay": "^4.4.0",
+		"sinon": "^9.0.3",
+		"xo": "^0.24.0"
+	}
+}
