@@ -1,6 +1,6 @@
 {
 	"name": "bragg-timeout",
-	"version": "0.0.0",
+	"version": "0.0.1",
 	"description": "Timeout middleware for bragg framework",
 	"license": "MIT",
 	"repository": "simonjang/bragg-timeout",
