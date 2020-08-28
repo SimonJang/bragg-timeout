@@ -2,8 +2,8 @@
 
 > Timeout middleware for bragg framework
 
-When AWS Lambda, a simple `Task timed out after x seconds` is logged. This is often looked over when setting alarms or when investigating issues. This middleware tries to resolve this problem by allowing the consumer
-of the middleware to perform an action at some point in time before the time out.
+When AWS Lambda times out, a simple `Task timed out after x seconds` is logged. This is often overlooked when setting CloudWatch alarms or when investigating issues. This middleware tries to resolve this problem by allowing the consumer
+of the middleware to perform an action at some point in time before the lambda reached the time out.
 
 
 ## Install
