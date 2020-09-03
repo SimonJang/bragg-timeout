@@ -21,12 +21,12 @@ const app = require('bragg');
 
 const app = bragg();
 
-app.use(
-	braggTimeout({
-		threshold: 1000,
-		cb: () => console.error('Error: Lambda timeout')
-	})
-);
+const timerMiddleware = timeout({
+	threshold: 1000,
+	cb: () => console.error('error - timeout')
+});
+
+app.use(ctx => timerMiddleware(ctx).setTimer()) // Set the timer
 
 export const handler = app.listen();
 ```
@@ -34,7 +34,7 @@ export const handler = app.listen();
 
 ## API
 
-### braggTimeout(input)
+### braggTimeout(input) => output
 
 #### input
 
@@ -64,3 +64,24 @@ Example:
 Type: `function`
 
 Callback function that is executed at the threshold time.
+
+#### output
+
+Type: `function`
+
+A function using the context of the request to set and clear a timer
+
+```javascript
+const timerMiddleware = timeout({
+	threshold: 1000,
+	cb: () => console.error('error - timeout')
+});
+
+
+app.use(ctx => {
+	const timer = timerMiddleware(ctx)
+
+	timer.setTimer() // Set the timer
+	timer.removeTimer() // Remove the timer
+})
+```
