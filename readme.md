@@ -1,15 +1,14 @@
-# bragg-timeout ![CI](https://github.com/SimonJang/bragg-timeout/workflows/CI/badge.svg)
+# bragg-timeout [![CI](https://github.com/SimonJang/bragg-timeout/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/SimonJang/bragg-timeout/actions/workflows/ci.yml)
 
 > Timeout middleware for bragg framework
 
-When AWS Lambda times out, a simple `Task timed out after x seconds` is logged. This is often overlooked when setting CloudWatch alarms or when investigating issues. This middleware tries to resolve this problem by allowing the consumer
-of the middleware to perform an action at some point in time before the lambda reached the time out.
+When AWS Lambda times out, a simple `Task timed out after x seconds` is logged. This is often overlooked when setting CloudWatch alarms or when investigating issues. This middleware lets the consumer perform an action shortly before the Lambda reaches its timeout.
 
 
 ## Install
 
-```
-$ npm install bragg-timeout
+```sh
+npm install bragg-timeout
 ```
 
 
@@ -17,18 +16,17 @@ $ npm install bragg-timeout
 
 ```js
 const braggTimeout = require('bragg-timeout');
-const app = require('bragg');
-
+const bragg = require('bragg');
 const app = bragg();
 
-const timerMiddleware = timeout({
+const timerMiddleware = braggTimeout({
 	threshold: 1000,
 	cb: () => console.error('error - timeout')
 });
 
-app.use(ctx => timerMiddleware(ctx).setTimer()) // Set the timer
+app.use(ctx => timerMiddleware(ctx).setTimer());
 
-export const handler = app.listen();
+module.exports.handler = app.listen();
 ```
 
 
@@ -40,26 +38,25 @@ export const handler = app.listen();
 
 Type: `object`
 
-Time out configuration options
+Timeout configuration options.
 
 #### input.threshold
 
 Type: `number`
 
-Time in **milliseconds** that is used a a threshold before the time out to execute the callback function.
+Time in **milliseconds** before the Lambda timeout at which the callback executes.
 
 Example:
 
 > threshold: 1000 (1 second)
 >
-> Lambda time out: 10000 (10 seconds)
+> Lambda timeout: 10000 (10 seconds)
 >
-> With the above configuration, the middleware will trigger the callback function at +- 9000 ms (9 seconds) run time.
+> With the above configuration, the middleware triggers the callback at approximately 9000 ms (9 seconds) of runtime.
 >
-> Since the lambda time out is calculated using the `getRemainingTimeInMillis()`, this is not 100% accurate and might be a few milliseconds off the exact time out.
-> It also depends on when the middleware is used
+> Since the Lambda timeout is calculated using `getRemainingTimeInMillis()`, it might be a few milliseconds off the exact timeout. It also depends on when the middleware is used.
 
-##### input.cb
+#### input.cb
 
 Type: `function`
 
@@ -69,19 +66,19 @@ Callback function that is executed at the threshold time.
 
 Type: `function`
 
-A function using the context of the request to set and clear a timer
+A function using the request context to set and clear a timer.
 
 ```javascript
-const timerMiddleware = timeout({
+const timerMiddleware = braggTimeout({
 	threshold: 1000,
 	cb: () => console.error('error - timeout')
 });
 
 
 app.use(ctx => {
-	const timer = timerMiddleware(ctx)
+	const timer = timerMiddleware(ctx);
 
-	timer.setTimer() // Set the timer
-	timer.removeTimer() // Remove the timer
-})
+	timer.setTimer(); // Set the timer
+	timer.removeTimer(); // Remove the timer
+});
 ```

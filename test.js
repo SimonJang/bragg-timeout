@@ -1,101 +1,96 @@
-import test from 'ava';
-import delay from 'delay';
-import * as sinon from 'sinon';
-import middleware from '.';
+'use strict';
 
-const createContext = () => {
-	const ctx = {};
-	const lambdaContext = {
-		getRemainingTimeInMillis: () => 2500
+const assert = require('node:assert/strict');
+const test = require('node:test');
+const timeout = require('.');
+
+const createContext = remainingTime => ({
+	context: {
+		getRemainingTimeInMillis: () => remainingTime
+	}
+});
+
+const withFakeTimers = run => {
+	const originalSetTimeout = global.setTimeout;
+	const originalClearTimeout = global.clearTimeout;
+	const scheduled = [];
+	const cleared = [];
+
+	global.setTimeout = (handler, delay) => {
+		const handle = {handler, delay};
+		scheduled.push(handle);
+		return handle;
 	};
+	global.clearTimeout = handle => cleared.push(handle);
 
-	Object.defineProperty(ctx, 'context', {enumerable: true, value: lambdaContext});
-
-	return ctx;
+	try {
+		return run({scheduled, cleared});
+	} finally {
+		global.setTimeout = originalSetTimeout;
+		global.clearTimeout = originalClearTimeout;
+	}
 };
 
-let sandbox;
+test('setTimer schedules the callback before the Lambda deadline', () => {
+	withFakeTimers(({scheduled}) => {
+		let callbackCalls = 0;
+		const ctx = createContext(2500);
+		const timer = timeout({
+			threshold: 500,
+			cb: () => {
+				callbackCalls++;
+			}
+		})(ctx);
 
-test.before(() => {
-	sandbox = sinon.createSandbox();
-	sandbox.spy(console, 'log');
+		timer.setTimer();
+
+		assert.equal(scheduled.length, 1);
+		assert.equal(scheduled[0].delay, 2000);
+		assert.equal(ctx.context.timer, scheduled[0]);
+
+		scheduled[0].handler();
+		assert.equal(callbackCalls, 1);
+	});
 });
 
-test.beforeEach(() => {
-	sandbox.reset();
+test('setTimer clears an existing timer before replacing it', () => {
+	withFakeTimers(({scheduled, cleared}) => {
+		const ctx = createContext(1500);
+		const existingTimer = {id: 'existing'};
+		Object.defineProperty(ctx.context, 'timer', {
+			value: existingTimer,
+			configurable: true
+		});
+		const timer = timeout({threshold: 250, cb: () => {}})(ctx);
+
+		timer.setTimer();
+
+		assert.deepEqual(cleared, [existingTimer]);
+		assert.equal(scheduled.length, 1);
+		assert.equal(scheduled[0].delay, 1250);
+		assert.equal(ctx.context.timer, scheduled[0]);
+	});
 });
 
-test.serial('should run callback function on timeout', async t => {
-	const configuration = {
-		threshold: 2000,
-		cb: () => console.log('Timeout test 1')
-	};
+test('removeTimer clears and removes the active timer', () => {
+	withFakeTimers(({scheduled, cleared}) => {
+		const ctx = createContext(1000);
+		const timer = timeout({threshold: 100, cb: () => {}})(ctx);
+		timer.setTimer();
 
-	const timer = middleware(configuration)(createContext());
-	timer.setTimer();
+		timer.removeTimer();
 
-	await delay(2000);
-
-	t.is(console.log.callCount, 1);
-	t.true(console.log.calledWith('Timeout test 1'));
+		assert.deepEqual(cleared, [scheduled[0]]);
+		assert.equal(Object.hasOwn(ctx.context, 'timer'), false);
+	});
 });
 
-test.serial('should not run callback function on timeout', async t => {
-	const configuration = {
-		threshold: 2000,
-		cb: () => console.log('Timeout test 2')
-	};
+test('removeTimer is safe when no timer has been set', () => {
+	withFakeTimers(({cleared}) => {
+		const ctx = createContext(1000);
+		const timer = timeout({threshold: 100, cb: () => {}})(ctx);
 
-	const timer = middleware(configuration)(createContext());
-
-	timer.setTimer();
-	timer.removeTimer();
-	await delay(2000);
-
-	t.is(console.log.callCount, 0);
-});
-
-test.serial('should be able to delete existing timer and create a new timer', async t => {
-	const handler = () => console.log('Timeout test 3');
-	const threshold = 1000;
-
-	const configuration = {
-		threshold,
-		cb: handler
-	};
-
-	const ctx = createContext();
-	const configuredTimer = setTimeout(handler, ctx.context.getRemainingTimeInMillis() - threshold);
-	Object.defineProperty(ctx.context, 'timer', {value: configuredTimer, configurable: true});
-
-	const timer = middleware(configuration)(ctx);
-
-	timer.setTimer();
-
-	await delay(2000);
-
-	t.is(console.log.callCount, 1);
-	t.true(console.log.calledWith('Timeout test 3'));
-});
-
-test.serial('should be able to delete existing timer and create a new timer that will not log', async t => {
-	const handler = () => console.log('Timeout test 4');
-	const threshold = 50;
-
-	const configuration = {
-		threshold,
-		cb: handler
-	};
-
-	const ctx = createContext();
-	const configuredTimer = setTimeout(handler, ctx.context.getRemainingTimeInMillis() - threshold);
-	Object.defineProperty(ctx.context, 'timer', {value: configuredTimer, configurable: true});
-
-	const timer = middleware(configuration)(ctx);
-
-	timer.setTimer();
-
-	await delay(2000);
-
-	t.is(console.log.callCount, 0);
+		assert.doesNotThrow(() => timer.removeTimer());
+		assert.deepEqual(cleared, []);
+	});
 });
