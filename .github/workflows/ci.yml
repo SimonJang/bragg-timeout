@@ -1,29 +1,42 @@
 name: CI
 
-on: [push, pull_request]
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  main:
-    name: Test (Node ${{ matrix.node }})
+  test:
     runs-on: ubuntu-latest
-
+    timeout-minutes: 5
     strategy:
       matrix:
-        node: [12, 14]
-
+        node-version: [22.x, 24.x, 26.x]
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v1
-
-      - name: Use Node ${{ matrix.node }}
-        uses: actions/setup-node@v1
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
-          node-version: ${{ matrix.node }}
+          node-version: ${{ matrix.node-version }}
+          package-manager-cache: false
+      - run: npm ci
+      - run: npm test
+      - run: npm pack --dry-run
 
-      - name: Install NPM dependencies
-        run: npm ci
-
-      - name: Run unit tests
-        run: npm test
-        env:
-          CI: true
+  legacy-runtime:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 8.x
+          package-manager-cache: false
+      - name: Smoke-test the declared runtime floor
+        run: >-
+          node -e "var scheduled; var cleared; global.setTimeout = function (handler, delay) { scheduled = {handler: handler, delay: delay}; return scheduled; }; global.clearTimeout = function (handle) { cleared = handle; }; var ctx = {context: {getRemainingTimeInMillis: function () { return 1000; }}}; var timer = require('./')({threshold: 100, cb: function () {}})(ctx); timer.setTimer(); if (scheduled.delay !== 900 || ctx.context.timer !== scheduled) process.exit(1); timer.removeTimer(); if (cleared !== scheduled || Object.prototype.hasOwnProperty.call(ctx.context, 'timer')) process.exit(1);"

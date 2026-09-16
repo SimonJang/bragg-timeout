@@ -8,6 +8,7 @@
 const clearTimer = ctx => {
 	if (ctx.context.timer) {
 		clearTimeout(ctx.context.timer);
+		delete ctx.context.timer;
 	}
 };
 
@@ -15,7 +16,7 @@ const clearTimer = ctx => {
  * Create timer
  *
  * @param {Object} ctx - Context of the request
- * @param {number} threshold - Treshold when to execute the handler when nearing timeout
+ * @param {number} threshold - Threshold at which to execute the handler when nearing timeout
  * @param {Function} handler - Callback function to execute when the timeout has been reached
  */
 const createTimer = (ctx, threshold, handler) => {
@@ -25,7 +26,9 @@ const createTimer = (ctx, threshold, handler) => {
 };
 
 /**
- * @param {Object} ctx - Configuration of the timer
+ * @param {Object} input - Timer configuration
+ * @param {number} input.threshold - Milliseconds before timeout at which to run the callback
+ * @param {Function} input.cb - Callback to execute
  *
  * @returns {Function} - Middleware function
  */
